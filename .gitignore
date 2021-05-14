@@ -23,6 +23,7 @@ yarn-debug.log*
 yarn-error.log*
 
 /video
+
 .mp3
 .webm
 .mp4
