@@ -27,4 +27,5 @@ yarn-error.log*
 *.mp3
 *.webm
 *.mp4
+*.mov
 /__pycache__
