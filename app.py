@@ -3,6 +3,8 @@ from flask import Flask, render_template, send_file, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from moviepy.editor import *
+from moviepy.video.fx.all import crop
+import json
 
 UPLOAD_FOLDER = './video'
 
@@ -25,8 +27,8 @@ def upload():
      if request.method == 'POST':
           files = request.files.getlist("file")
           audio = request.files['audio']
-          mark = request.values['mark']
-          start = request.values['time']
+          mark = json.loads(request.values['mark'])
+          start = int(request.values['time'])
           size = request.values['size']
           filterVideo = request.values['filter']
 
@@ -43,19 +45,63 @@ def upload():
           videos = []
 
           for file in saveFiles:
-               videoTmp = VideoFileClip(app.config['UPLOAD_FOLDER'] +"/"+ file)
+               videoTmp = VideoFileClip("./video/" + file)
+               (w, h) = videoTmp.size
+               if w > h:
+                    videoTmp = videoTmp.resize(height=720)
+               else:
+                    videoTmp = videoTmp.resize(width=720)
+                    
+               (w, h) = videoTmp.size
+               cropped_clip = crop(videoTmp, width=720, height=720, x_center=w/2, y_center=h/2)
                videos.append({
-                    "video": videoTmp,
-                    "duration": float(videoTmp.duration),
+                    "video": cropped_clip,
+                    "duration": float(cropped_clip.duration),
                     "name": file,
                     "start": 0,
-               })
+                    "block": 0,
+               });
                
           videos.sort(key=lambda k: k["duration"], reverse=True)
+          mark.sort(key=lambda t: t["time"])
+          mark.append({"time": 20.0})
+          countV = len(videos)
+          result = []
+          curent = 0.0
+
+          for interval in mark:
+               time = interval["time"] - curent
+               for video in videos:
+                    if video["block"] != 0:
+                         video["block"] -= 1
+
+               for video in videos: # search video
+                    #############
+                    if video["duration"] >= time and video["block"] == 0:
+                         best = video
+                         break
+                    #############
+                    
+               if not best:
+                    return jsonify(succes=False)
+
+               tmp = best["video"].subclip(best["start"], best["start"] + time) 
+               videos.remove(best) # because of memory address
+               best["start"] += (time + 5)
+               best["duration"] -= (time + 5)
+               best["block"] = countV - int(countV / 5)
+               videos.append(best)
+
+               result.append(tmp)
+               curent = interval["time"]
+
+          audioclip = AudioFileClip("./video/audio.mp3").subclip(start, start + 20)
+          final = concatenate_videoclips(result).set_audio(audioclip)
+          final.write_videofile("result.mp4", fps=25)
 
           return jsonify(success=True)
 
      for file in saveFiles:
           os.remove(app.config['UPLOAD_FOLDER'] +"/"+ file)
 
-     return send_file("./video/Aestheticvideo.mp4")
+     return send_file("./result.mp4")
