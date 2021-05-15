@@ -33,7 +33,7 @@ for file in ["1.mp4", "2.mp4", "3.mp4", "4.mp4", "5.mp4"]:
 videos.sort(key=lambda k: k["duration"], reverse=True)
 mark.sort(key=lambda t: t["time"])
 mark.append({"time": 20.0})
-
+countV = len(videos)
 result = []
 curent = 0.0
 for interval in mark:
@@ -57,7 +57,7 @@ for interval in mark:
     videos.remove(best) # because of memory address
     best["start"] += (time + 1)
     best["duration"] -= (time + 1)
-    best["block"] = 4
+    best["block"] = countV - int(countV / 5)
     videos.append(best)
 
     result.append(tmp)

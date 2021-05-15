@@ -17,7 +17,7 @@ def allowed_file(filename, allowed):
 
 @app.route("/")
 def index():
-     return "Hello, gey Worlds!"
+     return render_template("index.html")
 
 @app.route("/upload",  methods=["GET", "POST"])
 def upload():
@@ -52,8 +52,6 @@ def upload():
                })
                
           videos.sort(key=lambda k: k["duration"], reverse=True)
-          for i in videos:
-               print(i["duration"])
 
           return jsonify(success=True)
 

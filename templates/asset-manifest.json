@@ -1,0 +1,28 @@
+{
+  "files": {
+    "main.css": "/static/css/main.a4925459.chunk.css",
+    "main.js": "/static/js/main.b9d4e556.chunk.js",
+    "main.js.map": "/static/js/main.b9d4e556.chunk.js.map",
+    "runtime-main.js": "/static/js/runtime-main.4bbf1ac5.js",
+    "runtime-main.js.map": "/static/js/runtime-main.4bbf1ac5.js.map",
+    "static/js/2.498bf709.chunk.js": "/static/js/2.498bf709.chunk.js",
+    "static/js/2.498bf709.chunk.js.map": "/static/js/2.498bf709.chunk.js.map",
+    "index.html": "/index.html",
+    "static/css/main.a4925459.chunk.css.map": "/static/css/main.a4925459.chunk.css.map",
+    "static/js/2.498bf709.chunk.js.LICENSE.txt": "/static/js/2.498bf709.chunk.js.LICENSE.txt",
+    "static/media/style.css": "/static/media/d883f356f66173c404b5998ff70ea94a.799cc013.jpg",
+    "static/media/instagram.7ea2de56.svg": "/static/media/instagram.7ea2de56.svg",
+    "static/media/linkedin.e9844a5a.svg": "/static/media/linkedin.e9844a5a.svg",
+    "static/media/logo.9d7ed14f.png": "/static/media/logo.9d7ed14f.png",
+    "static/media/meme.80554321.jpg": "/static/media/meme.80554321.jpg",
+    "static/media/moon2.07ffed4d.png": "/static/media/moon2.07ffed4d.png",
+    "static/media/telegram.84616f45.svg": "/static/media/telegram.84616f45.svg",
+    "static/media/twitter.fc37ff49.svg": "/static/media/twitter.fc37ff49.svg"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.4bbf1ac5.js",
+    "static/js/2.498bf709.chunk.js",
+    "static/css/main.a4925459.chunk.css",
+    "static/js/main.b9d4e556.chunk.js"
+  ]
+}
