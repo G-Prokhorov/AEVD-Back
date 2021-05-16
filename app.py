@@ -22,12 +22,10 @@ def index():
 
 
 
-filePath = ""
 resultFILE = ""     
-saveFiles = []
-videos = []
 
 musicFiles = [ {"path": "Swag.mp3", "artist": "LostGift", "title": "Swag", "smile": "cool", }, { "path": "elyotto_-_sugar_crash.mp3", "artist": "Elyotto", "title": "Sugar crash", "smile": "cool", }, { "path": "I Just Want to Be the One You Love.mp3", "artist": "Darkohtrash", "title": "I Just Want to Be the One You Love", "smile": "sad", }, { "path": "I Need a Girl.mp3", "artist": "Lo-fi Type Beat", "title": "I Need a Girl", "smile": "sad", }, { "path": "Sufjan Stevens - Mystery of Love.mp3", "artist": "Sufjan Stevens", "title": "Mystery of Love", "smile": "sad", }, { "path": "Future - Mask Off (Aesthetic Remix).mp3", "artist": "Future", "title": "Mask Off (Aesthetic Remix)", "smile": "cool", }, { "path": "1570655028_Joji_-_SLOW_DANCING_IN_THE_DARK.mp3", "artist": "Joji", "title": "SLOW DANCING IN THE DARK", "smile": "sad", }, { "path": "eyes blue like the atlantic (slowed+reverb).mp3", "artist": "Sista Prod", "title": "Eyes blue like the atlantic", "smile": "sad", }]
+    
 
 @app.route("/music")
 def music():
@@ -46,92 +44,102 @@ def getMusic(path=None):
           status=400)
           return response        
 
+block = False
 
-@app.route("/upload",  methods=["GET", "POST"])
+@app.route("/upload",  methods=["GET", "POST", "DELETE"])
 def upload():
-     global filePath
      global resultFILE  
-     global saveFiles
-     global videos
+     global block
 
-     if request.method == 'POST':
-          filePath = ""
-          resultFILE = ""     
-          videos = []
-          files = request.files.getlist("file")
-          audio = request.files['audio']
-          mark = json.loads(request.values['mark'])
-          start = int(request.values['time'])
-          # size = request.values['size']
-          filterVideo = request.values['filter']
-
-          filePath =  os.path.join("./video/", str(uuid.uuid4()))
-          os.mkdir(filePath)
-
-          videos = saveFileFunc(audio, files)
+     if request.method == 'DELETE':
+          if (resultFILE):
+               print("here")     
+               os.remove(resultFILE) 
           
-          mark.sort(key=lambda t: t["time"])
-          mark.append({"time": 20.0})
+     
+     if request.method == 'POST':
+          if not block:
+               block = True
+               filePath = ""
+               resultFILE = ""     
+               videos = []
+               saveFiles = []
+               files = request.files.getlist("file")
+               audio = request.files['audio']
+               mark = json.loads(request.values['mark'])
+               start = int(request.values['time'])
+               # size = request.values['size']
+               filterVideo = request.values['filter']
 
-          countV = int(len(videos) * 0.6)
-          curent = 0.0
-          result = []
+               filePath =  os.path.join("./video/", str(uuid.uuid4()))
+               os.mkdir(filePath)
 
-          for interval in mark:
-               time = interval["time"] - curent
-               best = None
-               for video in videos:
-                    if video["block"] != 0:
-                         video["block"] -= 1
+               videos = saveFileFunc(audio, files, filePath, saveFiles)
+               
+               mark.sort(key=lambda t: t["time"])
+               mark.append({"time": 20.0})
 
-               for video in videos: # search video
-                    #############
-                    if video["duration"] >= time and video["block"] == 0:
-                         best = video
-                         break
-                    #############
-                    
-               if not best:
-                    clear(filePath, videos)
-                    print("ERROR")
+               countV = int(len(videos) * 0.7)
+               curent = 0.0
+               result = []
+
+               for interval in mark:
+                    time = interval["time"] - curent
+                    best = None
+                    for video in videos:
+                         if video["block"] != 0:
+                              video["block"] -= 1
+
+                    for video in videos: # search video
+                         #############
+                         if video["duration"] >= time and video["block"] == 0:
+                              best = video
+                              break
+                         #############
+                         
+                    if not best:
+                         clear(filePath, videos, saveFiles)
+                         print("ERROR")
+                         response = app.response_class(
+                         status=400)
+                         return response  
+
+                    tmp = best["video"].subclip(best["start"], best["start"] + time) 
+                    result.append(tmp)
+                    videos.remove(best) # because of memory address
+                    best["start"] += (time + 5)
+                    best["duration"] -= (time + 5)
+                    best["block"] = countV
+
+                    insert = False
+                    for i in range(len(videos)): 
+                         if best["duration"] < videos[i]["duration"]:
+                              videos.insert(i, best)
+                              insert = True
+                              break
+
+                    if not insert:
+                         videos.append(best)
+
+                    curent = interval["time"]
+
+               if not result:
+                    clear(filePath, videos, saveFiles)
                     response = app.response_class(
                     status=400)
                     return response  
 
-               tmp = best["video"].subclip(best["start"], best["start"] + time) 
-               result.append(tmp)
-               videos.remove(best) # because of memory address
-               best["start"] += (time + 5)
-               best["duration"] -= (time + 5)
-               best["block"] = countV
-
-               insert = False
-               for i in range(len(videos)): 
-                    if best["duration"] < videos[i]["duration"]:
-                         videos.insert(i, best)
-                         insert = True
-                         break
-
-               if not insert:
-                    videos.append(best)
-
-               curent = interval["time"]
-
-          if not result:
-               clear(filePath, videos)
+               resultFILE = makeVideo(filterVideo, start, result, filePath)
                response = app.response_class(
-               status=400)
-               return response  
+               status=200)
+               clear(filePath, videos, saveFiles)
+               block = False
+               return response
+          else:
+               response = app.response_class(
+               status=509)
+               return response    
 
-          resultFILE = makeVideo(filterVideo, start, result)
-
-          response = app.response_class(
-          status=200)
-          return response  
-
-
-     clear(filePath, videos)
-     saveFiles = []
      if resultFILE:
           return send_file(resultFILE)
      else:
@@ -140,7 +148,7 @@ def upload():
           return response  
 
 
-def clear(filePath="", videos=[]):
+def clear(filePath="", videos=[], saveFiles=[]):
      for elm in videos:
           elm["video"].close()
 
@@ -163,10 +171,7 @@ def clear(filePath="", videos=[]):
           
           os.rmdir(filePath)
 
-def saveFileFunc (audio, files):
-     global filePath
-     global saveFiles
-
+def saveFileFunc (audio, files, filePath, saveFiles):
      if audio and allowed_file(audio.filename, ["mp3"]):
           filename = audio.filename.rsplit('.', 1)[1]
           audio.save(os.path.join(filePath, "audio." + filename))
@@ -211,7 +216,7 @@ def saveFileFunc (audio, files):
      videos.sort(key=lambda k: k["duration"], reverse=True)
      return videos
 
-def makeVideo(filterVideo, start, result):
+def makeVideo(filterVideo, start, result, filePath):
      audioclip = AudioFileClip(os.path.join(filePath, "audio.mp3")).subclip(start, start + 20)
      final = concatenate_videoclips(result).set_audio(audioclip)
      resultFILE = os.path.join("./result", str(uuid.uuid4()) + ".mp4")
