@@ -1,7 +1,6 @@
 import os
-from flask import Flask, render_template, send_file, request, jsonify
+from flask import Flask, render_template, send_file, request
 from flask_cors import CORS
-from numpy import insert
 from werkzeug.utils import secure_filename
 from moviepy.editor import *
 import moviepy.video.fx.all as vfx
@@ -26,48 +25,9 @@ def index():
 filePath = ""
 resultFILE = ""     
 saveFiles = []
+videos = []
 
-musicFiles = [ {
-          "path": "Swag.mp3",
-          "artist": "LostGift",
-          "title": "Swag",    
-          "smile": "cool",
-     }, {
-        "path": "elyotto_-_sugar_crash.mp3",
-        "artist": "Elyotto",
-        "title": "Sugar crash",
-        "smile": "cool",    
-     }, {
-          "path": "I Just Want to Be the One You Love.mp3",
-          "artist": "Darkohtrash",
-          "title": "I Just Want to Be the One You Love",    
-          "smile": "sad",
-     }, {
-          "path": "I Need a Girl.mp3",
-          "artist": "Lo-fi Type Beat",
-          "title": "I Need a Girl",
-          "smile": "sad",    
-     }, {
-          "path": "Sufjan Stevens - Mystery of Love.mp3",
-          "artist": "Sufjan Stevens",
-          "title": "Mystery of Love", 
-          "smile": "sad",   
-     }, {
-          "path": "Future - Mask Off (Aesthetic Remix).mp3",
-          "artist": "Future",
-          "title": "Mask Off (Aesthetic Remix)", 
-          "smile": "cool",   
-     }, {
-          "path": "1570655028_Joji_-_SLOW_DANCING_IN_THE_DARK.mp3",
-          "artist": "Joji",
-          "title": "SLOW DANCING IN THE DARK", 
-          "smile": "sad",   
-     }, {
-          "path": "eyes blue like the atlantic (slowed+reverb).mp3",
-          "artist": "Sista Prod",
-          "title": "Eyes blue like the atlantic",
-          "smile": "sad",    
-     }]
+musicFiles = [ {"path": "Swag.mp3", "artist": "LostGift", "title": "Swag", "smile": "cool", }, { "path": "elyotto_-_sugar_crash.mp3", "artist": "Elyotto", "title": "Sugar crash", "smile": "cool", }, { "path": "I Just Want to Be the One You Love.mp3", "artist": "Darkohtrash", "title": "I Just Want to Be the One You Love", "smile": "sad", }, { "path": "I Need a Girl.mp3", "artist": "Lo-fi Type Beat", "title": "I Need a Girl", "smile": "sad", }, { "path": "Sufjan Stevens - Mystery of Love.mp3", "artist": "Sufjan Stevens", "title": "Mystery of Love", "smile": "sad", }, { "path": "Future - Mask Off (Aesthetic Remix).mp3", "artist": "Future", "title": "Mask Off (Aesthetic Remix)", "smile": "cool", }, { "path": "1570655028_Joji_-_SLOW_DANCING_IN_THE_DARK.mp3", "artist": "Joji", "title": "SLOW DANCING IN THE DARK", "smile": "sad", }, { "path": "eyes blue like the atlantic (slowed+reverb).mp3", "artist": "Sista Prod", "title": "Eyes blue like the atlantic", "smile": "sad", }]
 
 @app.route("/music")
 def music():
@@ -92,26 +52,30 @@ def upload():
      global filePath
      global resultFILE  
      global saveFiles
+     global videos
 
      if request.method == 'POST':
+          filePath = ""
+          resultFILE = ""     
+          videos = []
           files = request.files.getlist("file")
           audio = request.files['audio']
           mark = json.loads(request.values['mark'])
           start = int(request.values['time'])
-          size = request.values['size']
+          # size = request.values['size']
           filterVideo = request.values['filter']
 
           filePath =  os.path.join("./video/", str(uuid.uuid4()))
           os.mkdir(filePath)
 
-          videos = saveFileFunc(audio, files, size)
+          videos = saveFileFunc(audio, files)
           
           mark.sort(key=lambda t: t["time"])
           mark.append({"time": 20.0})
 
-          countV = int(len(videos) * 0.75)
-          result = []
+          countV = int(len(videos) * 0.6)
           curent = 0.0
+          result = []
 
           for interval in mark:
                time = interval["time"] - curent
@@ -128,7 +92,7 @@ def upload():
                     #############
                     
                if not best:
-                    clear(filePath)
+                    clear(filePath, videos)
                     print("ERROR")
                     response = app.response_class(
                     status=400)
@@ -142,7 +106,7 @@ def upload():
                best["block"] = countV
 
                insert = False
-               for i in range(len(videos)):
+               for i in range(len(videos)): 
                     if best["duration"] < videos[i]["duration"]:
                          videos.insert(i, best)
                          insert = True
@@ -154,26 +118,20 @@ def upload():
                curent = interval["time"]
 
           if not result:
-               clear(filePath)
+               clear(filePath, videos)
                response = app.response_class(
                status=400)
                return response  
 
-          audioclip = AudioFileClip(os.path.join(filePath, "audio.mp3")).subclip(start, start + 20)
-          final = concatenate_videoclips(result).set_audio(audioclip)
-          resultFILE = os.path.join("./result", str(uuid.uuid4()) + ".mp4")
+          resultFILE = makeVideo(filterVideo, start, result)
 
-          if filterVideo == "b&w":
-               final = vfx.blackwhite(final, RGB=None, preserve_luminosity=True)
-
-          final.write_videofile(resultFILE, fps=25)
           response = app.response_class(
           status=200)
           return response  
 
 
-     clear(filePath)
-
+     clear(filePath, videos)
+     saveFiles = []
      if resultFILE:
           return send_file(resultFILE)
      else:
@@ -182,19 +140,30 @@ def upload():
           return response  
 
 
-def clear(filePath):
+def clear(filePath="", videos=[]):
+     for elm in videos:
+          elm["video"].close()
+
      if (filePath != ""):
           path = os.path.join(filePath, "audio.mp3")
-          if os.path.isfile(path):
-               os.remove(path)
-          for f in saveFiles:
-               path = os.path.join(filePath, f)
+          try:
                if os.path.isfile(path):
                     os.remove(path)
+          except UnboundLocalError:
+               pass
+
+          for f in saveFiles:
+               try:
+                    path = os.path.join(filePath, f)
+                    if os.path.isfile(path):
+                         os.remove(path)
+               except UnboundLocalError:
+                    pass
+               
           
           os.rmdir(filePath)
 
-def saveFileFunc (audio, files, size):
+def saveFileFunc (audio, files):
      global filePath
      global saveFiles
 
@@ -210,31 +179,47 @@ def saveFileFunc (audio, files, size):
 
      videos = []
 
-     if size == "9:16":
-          height = 1280
-     else:
-          height = 720
+     # if size == "9:16":
+     #      height = 1280
+     # else:
+     #      height = 720
 
      for file in saveFiles:
-          videoTmp = VideoFileClip(os.path.join(filePath, file))
-          (w, h) = videoTmp.size
-          if w >= h:
-               videoTmp = videoTmp.resize(height=height)
-          else:
-               videoTmp = videoTmp.resize(width=720)
+          try:
+               videoTmp = VideoFileClip(os.path.join(filePath, file))
+               (w, h) = videoTmp.size
+               if w >= h:
+                    videoTmp = videoTmp.resize(height=720)
+               else:
+                    videoTmp = videoTmp.resize(width=720)
+               
+               (w, h) = videoTmp.size
+               cropped_clip = crop(videoTmp, width=720, height=720, x_center=w/2, y_center=h/2)
+               
+          except KeyError:
+               pass
           
-          (w, h) = videoTmp.size
-          cropped_clip = crop(videoTmp, width=720, height=height, x_center=w/2, y_center=h/2)
-          videos.append({
-               "video": cropped_clip,
-               "duration": float(cropped_clip.duration),
-               "name": file,
-               "start": 0,
-               "block": 0,
-          });
+          if videoTmp:
+               videos.append({
+                         "video": cropped_clip,
+                         "duration": float(cropped_clip.duration),
+                         "name": file,
+                         "start": 0,
+                         "block": 0,
+                    });
 
      videos.sort(key=lambda k: k["duration"], reverse=True)
      return videos
 
+def makeVideo(filterVideo, start, result):
+     audioclip = AudioFileClip(os.path.join(filePath, "audio.mp3")).subclip(start, start + 20)
+     final = concatenate_videoclips(result).set_audio(audioclip)
+     resultFILE = os.path.join("./result", str(uuid.uuid4()) + ".mp4")
+
+     if filterVideo == "b&w":
+          final = vfx.blackwhite(final, RGB=None, preserve_luminosity=True)
+
+     final.write_videofile(resultFILE, fps=25)
+     return resultFILE
 
 app.run()
