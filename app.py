@@ -14,7 +14,7 @@ CORS(app)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 def allowed_file(filename, allowed):
-    return '.' in filename and filename.rsplit('.', 1)[1] in allowed
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
 
 @app.route("/")
 def index():
@@ -57,87 +57,87 @@ def upload():
                os.remove(os.path.join(fdir, f))
      
      if request.method == 'POST':
-          if not block:
-               block = True
-               filePath = ""
-               resultFILE = ""     
-               videos = []
-               saveFiles = []
-               files = request.files.getlist("file")
-               audio = request.files['audio']
-               mark = json.loads(request.values['mark'])
-               start = int(request.values['time'])
-               # size = request.values['size']
-               filterVideo = request.values['filter']
+          while True:
+               if not block:
+                    block = True
+                    filePath = ""
+                    resultFILE = ""     
+                    videos = []
+                    saveFiles = []
+                    files = request.files.getlist("file")
+                    audio = request.files['audio']
+                    mark = json.loads(request.values['mark'])
+                    start = int(request.values['time'])
+                    # size = request.values['size']
+                    filterVideo = request.values['filter']
 
-               filePath =  os.path.join("./video/", str(uuid.uuid4()))
-               os.mkdir(filePath)
+                    filePath =  os.path.join("./video/", str(uuid.uuid4()))
+                    os.mkdir(filePath)
 
-               videos = saveFileFunc(audio, files, filePath, saveFiles)
-               
-               mark.sort(key=lambda t: t["time"])
-               mark.append({"time": 20.0})
+                    videos = saveFileFunc(audio, files, filePath, saveFiles)
+                    
+                    mark.sort(key=lambda t: t["time"])
+                    mark.append({"time": 20.0})
 
-               countV = int(len(videos) * 0.7)
-               curent = 0.0
-               result = []
+                    countV = int(len(videos) * 0.7)
+                    curent = 0.0
+                    result = []
 
-               for interval in mark:
-                    time = interval["time"] - curent
-                    best = None
-                    for video in videos:
-                         if video["block"] != 0:
-                              video["block"] -= 1
+                    for interval in mark:
+                         time = interval["time"] - curent
+                         best = None
+                         for video in videos:
+                              if video["block"] != 0:
+                                   video["block"] -= 1
 
-                    for video in videos: # search video
-                         #############
-                         if video["duration"] >= time and video["block"] == 0:
-                              best = video
-                              break
-                         #############
-                         
-                    if not best:
+                         for video in videos: # search video
+                              #############
+                              if video["duration"] >= time and video["block"] == 0:
+                                   best = video
+                                   break
+                              #############
+                              
+                         if not best:
+                              clear(filePath, videos, saveFiles)
+                              print("ERROR")
+                              response = app.response_class(
+                              status=400)
+                              return response  
+
+                         tmp = best["video"].subclip(best["start"], best["start"] + time) 
+                         result.append(tmp)
+                         videos.remove(best) # because of memory address
+                         best["start"] += (time + 5)
+                         best["duration"] -= (time + 5)
+                         best["block"] = countV
+
+                         insert = False
+                         for i in range(len(videos)): 
+                              if best["duration"] < videos[i]["duration"]:
+                                   videos.insert(i, best)
+                                   insert = True
+                                   break
+
+                         if not insert:
+                              videos.append(best)
+
+                         curent = interval["time"]
+
+                    if not result:
                          clear(filePath, videos, saveFiles)
-                         print("ERROR")
                          response = app.response_class(
                          status=400)
                          return response  
 
-                    tmp = best["video"].subclip(best["start"], best["start"] + time) 
-                    result.append(tmp)
-                    videos.remove(best) # because of memory address
-                    best["start"] += (time + 5)
-                    best["duration"] -= (time + 5)
-                    best["block"] = countV
-
-                    insert = False
-                    for i in range(len(videos)): 
-                         if best["duration"] < videos[i]["duration"]:
-                              videos.insert(i, best)
-                              insert = True
-                              break
-
-                    if not insert:
-                         videos.append(best)
-
-                    curent = interval["time"]
-
-               if not result:
-                    clear(filePath, videos, saveFiles)
+                    resultFILE = makeVideo(filterVideo, start, result, filePath)
                     response = app.response_class(
-                    status=400)
-                    return response  
-
-               resultFILE = makeVideo(filterVideo, start, result, filePath)
-               response = app.response_class(
-               status=200)
-               clear(filePath, videos, saveFiles)
-               block = False
-               return response
-          else:
-               response = app.response_class(
-               status=509)
-               return response    
+                    status=200)
+                    clear(filePath, videos, saveFiles)
+                    block = False
+                    return response
+               else:
+                    import time
+                    time.sleep(3)    
 
      if resultFILE:
           return send_file(resultFILE)
@@ -176,7 +176,7 @@ def saveFileFunc (audio, files, filePath, saveFiles):
           audio.save(os.path.join(filePath, "audio." + filename))
 
      for file in files:
-          if file and allowed_file(file.filename, ['mp4', 'webm']):
+          if file and allowed_file(file.filename, ['mp4', 'webm', 'mov']):
                filename = secure_filename(file.filename)
                saveFiles.append(filename)
                file.save(os.path.join(filePath, filename))
