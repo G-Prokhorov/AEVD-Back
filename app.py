@@ -46,16 +46,15 @@ def getMusic(path=None):
 
 block = False
 
-@app.route("/upload",  methods=["GET", "POST", "DELETE"])
+@app.route("/upload",  methods=["GET", "POST", "PATCH"])
 def upload():
      global resultFILE  
      global block
-
-     if request.method == 'DELETE':
-          if (resultFILE):
-               print("here")     
-               os.remove(resultFILE) 
-          
+     
+     if request.method == 'PATCH':
+          fdir = './result'
+          for f in os.listdir(fdir):
+               os.remove(os.path.join(fdir, f))
      
      if request.method == 'POST':
           if not block:
